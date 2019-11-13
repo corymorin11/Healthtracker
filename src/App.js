@@ -149,32 +149,38 @@ function Survey(props) {
 
   useEffect(() => {
     navigator.geolocation.getCurrentPosition(position => {
-      const lat = position.coords.latitude;
-      const long = position.coords.longitude;
-      setLat(lat);
-      setLong(long);
+      setLat(position.coords.latitude);
+      setLong(position.coords.longitude);
     });
   }, []);
 
   useEffect(() => {
-    unirest
-      .get(
-        `https://community-open-weather-map.p.rapidapi.com/weather?lat=${lat}&lon=${long}&units=imperial`
-      )
-      .header("x-rapidapi-host", "community-open-weather-map.p.rapidapi.com")
-      .header(
-        "x-rapidapi-key",
-        "6ba0d30e54mshefe9cb5138981bep15fe8bjsnbc3e5bc8af87"
-      )
-      .end(function(result) {
-        setTemp(result.body.main.temp);
-      });
+    var req = unirest(
+      "GET",
+      "https://community-open-weather-map.p.rapidapi.com/weather"
+    );
+
+    req.query({
+      lat: lat,
+      long: long,
+      units: "imperial"
+    });
+
+    req.headers({
+      "x-rapidapi-host": "community-open-weather-map.p.rapidapi.com",
+      "x-rapidapi-key": "6ba0d30e54mshefe9cb5138981bep15fe8bjsnbc3e5bc8af87"
+    });
+    req.end(function(res) {
+      if (res.error) throw new Error(res.error);
+
+      console.log(res.body);
+      setTemp(res.body.main.temp);
+    });
     return;
   }, [lat, long]);
 
   const handleSave = () => {
-    let today = new Date();
-    today = moment(today).format("YYYY-MM-DD HH:mm");
+    const today = moment().format("YYYY-MM-DD HH:mm");
     db.collection("users")
       .doc(props.user.uid)
       .collection("surveys")
@@ -260,9 +266,9 @@ function Charts(props) {
       .doc(props.user.uid)
       .collection("surveys")
       .onSnapshot(snapshot => {
-        const temp_array = [];
-        const happiness_array = [];
-        const sleep_array = [];
+        let temp_array = [];
+        let happiness_array = [];
+        let sleep_array = [];
 
         snapshot.forEach(s => {
           const data = s.data();
@@ -271,6 +277,28 @@ function Charts(props) {
           sleep_array.push({ x: data.date, y: data.sleep });
         });
 
+        temp_array = temp_array.sort((a, b) => {
+          if (a.x > b.x) {
+            return 1;
+          } else {
+            return -1;
+          }
+        });
+        sleep_array = sleep_array.sort((a, b) => {
+          if (a.x > b.x) {
+            return 1;
+          } else {
+            return -1;
+          }
+        });
+        console.log(sleep_array);
+        happiness_array = happiness_array.sort((a, b) => {
+          if (a.x > b.x) {
+            return 1;
+          } else {
+            return -1;
+          }
+        });
         setTemp(temp_array);
         setHappiness(happiness_array);
         setSleep(sleep_array);
